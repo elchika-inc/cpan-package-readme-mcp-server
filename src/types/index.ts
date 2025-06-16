@@ -44,14 +44,15 @@ export interface CpanPackageSearchResult {
 
 // Tool Parameters
 export interface GetPackageReadmeParams {
-  module_name: string;    // Module name (required)
+  package_name: string;    // Package name (required)
+  version?: string;        // Package version (optional, defaults to latest)
   include_examples?: boolean; // Whether to include examples (optional, default: true)
 }
 
 export interface GetPackageInfoParams {
-  module_name: string;
+  package_name: string;
   include_dependencies?: boolean; // Whether to include dependencies (default: true)
-  include_test_dependencies?: boolean; // Whether to include test dependencies (default: false)
+  include_dev_dependencies?: boolean; // Whether to include dev/test dependencies (default: false)
 }
 
 export interface SearchPackagesParams {
@@ -61,7 +62,7 @@ export interface SearchPackagesParams {
 
 // Tool Responses
 export interface PackageReadmeResponse {
-  module_name: string;
+  package_name: string;
   version: string;
   description: string;
   readme_content: string;
@@ -69,19 +70,21 @@ export interface PackageReadmeResponse {
   installation: InstallationInfo;
   basic_info: PackageBasicInfo;
   repository?: RepositoryInfo | undefined;
+  exists: boolean;
 }
 
 export interface PackageInfoResponse {
-  module_name: string;
+  package_name: string;
   latest_version: string;
   description: string;
   author: string;
   license?: string | undefined;
   keywords?: string[] | undefined;
   dependencies?: string[] | undefined;
-  test_dependencies?: string[] | undefined;
+  dev_dependencies?: string[] | undefined;
   repository?: RepositoryInfo | undefined;
   distribution: string;
+  exists: boolean;
 }
 
 export interface SearchPackagesResponse {

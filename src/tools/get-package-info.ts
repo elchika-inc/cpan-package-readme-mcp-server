@@ -8,68 +8,82 @@ import type { GetPackageInfoParams, PackageInfoResponse, RepositoryInfo } from '
 export async function getPackageInfo(params: GetPackageInfoParams): Promise<PackageInfoResponse> {
   try {
     // Validate parameters
-    const moduleName = validateModuleName(params.module_name);
+    const packageName = validateModuleName(params.package_name);
     const includeDependencies = validateBoolean(params.include_dependencies, 'include_dependencies') ?? true;
-    const includeTestDependencies = validateBoolean(params.include_test_dependencies, 'include_test_dependencies') ?? false;
+    const includeDevDependencies = validateBoolean(params.include_dev_dependencies, 'include_dev_dependencies') ?? false;
 
-    logger.debug(`Getting package info for ${moduleName}`);
+    logger.debug(`Getting package info for ${packageName}`);
 
     // Check cache first
-    const cacheKey = createCacheKey.moduleInfo(moduleName);
+    const cacheKey = createCacheKey.moduleInfo(packageName);
     const cached = cache.get<PackageInfoResponse>(cacheKey);
     if (cached) {
-      logger.debug(`Using cached info for ${moduleName}`);
+      logger.debug(`Using cached info for ${packageName}`);
       return cached;
     }
 
-    // Get module information from MetaCPAN
-    const moduleInfo = await metaCpanApi.getModuleInfo(moduleName);
+    try {
+      // Get module information from MetaCPAN
+      const moduleInfo = await metaCpanApi.getModuleInfo(packageName);
 
-    // Extract dependencies if requested
-    let dependencies: string[] | undefined;
-    let testDependencies: string[] | undefined;
+      // Extract dependencies if requested
+      let dependencies: string[] | undefined;
+      let devDependencies: string[] | undefined;
 
-    if (includeDependencies && moduleInfo.metadata?.requires) {
-      dependencies = Object.keys(moduleInfo.metadata.requires).filter(dep => 
-        dep !== 'perl' // Exclude perl itself
-      );
-    }
+      if (includeDependencies && moduleInfo.metadata?.requires) {
+        dependencies = Object.keys(moduleInfo.metadata.requires).filter(dep => 
+          dep !== 'perl' // Exclude perl itself
+        );
+      }
 
-    if (includeTestDependencies && moduleInfo.metadata?.test_requires) {
-      testDependencies = Object.keys(moduleInfo.metadata.test_requires).filter(dep => 
-        dep !== 'perl' // Exclude perl itself
-      );
-    }
+      if (includeDevDependencies && moduleInfo.metadata?.test_requires) {
+        devDependencies = Object.keys(moduleInfo.metadata.test_requires).filter(dep => 
+          dep !== 'perl' // Exclude perl itself
+        );
+      }
 
-    // Create repository info
-    let repository: RepositoryInfo | undefined;
-    if (moduleInfo.metadata?.resources?.repository) {
-      repository = {
-        type: moduleInfo.metadata.resources.repository.type,
-        url: moduleInfo.metadata.resources.repository.url,
-        web: moduleInfo.metadata.resources.repository.web,
+      // Create repository info
+      let repository: RepositoryInfo | undefined;
+      if (moduleInfo.metadata?.resources?.repository) {
+        repository = {
+          type: moduleInfo.metadata.resources.repository.type,
+          url: moduleInfo.metadata.resources.repository.url,
+          web: moduleInfo.metadata.resources.repository.web,
+        };
+      }
+
+      const result: PackageInfoResponse = {
+        package_name: packageName,
+        latest_version: moduleInfo.version,
+        description: moduleInfo.abstract,
+        author: moduleInfo.author,
+        license: moduleInfo.metadata?.license?.[0],
+        keywords: moduleInfo.metadata?.keywords,
+        dependencies,
+        dev_dependencies: devDependencies,
+        repository,
+        distribution: moduleInfo.distribution,
+        exists: true,
+      };
+
+      // Cache the result
+      cache.set(cacheKey, result, 1800 * 1000); // Cache for 30 minutes
+
+      logger.info(`Successfully retrieved info for ${packageName}`);
+      return result;
+    } catch (error) {
+      // Return a response indicating the package doesn't exist
+      logger.warn(`Package ${packageName} not found in CPAN`);
+      return {
+        package_name: packageName,
+        latest_version: '',
+        description: '',
+        author: '',
+        distribution: '',
+        exists: false,
       };
     }
-
-    const result: PackageInfoResponse = {
-      module_name: moduleName,
-      latest_version: moduleInfo.version,
-      description: moduleInfo.abstract,
-      author: moduleInfo.author,
-      license: moduleInfo.metadata?.license?.[0],
-      keywords: moduleInfo.metadata?.keywords,
-      dependencies,
-      test_dependencies: testDependencies,
-      repository,
-      distribution: moduleInfo.distribution,
-    };
-
-    // Cache the result
-    cache.set(cacheKey, result, 1800 * 1000); // Cache for 30 minutes
-
-    logger.info(`Successfully retrieved info for ${moduleName}`);
-    return result;
   } catch (error) {
-    handleApiError(error, `get package info for ${params.module_name}`);
+    handleApiError(error, `get package info for ${params.package_name}`);
   }
 }

@@ -4,29 +4,61 @@ import { readmeParser } from '../services/readme-parser.js';
 import { logger } from '../utils/logger.js';
 import { validateModuleName, validateBoolean } from '../utils/validators.js';
 import { handleApiError } from '../utils/error-handler.js';
+import { searchPackages } from './search-packages.js';
 import type { GetPackageReadmeParams, PackageReadmeResponse, UsageExample, InstallationInfo, PackageBasicInfo, RepositoryInfo } from '../types/index.js';
 
 export async function getPackageReadme(params: GetPackageReadmeParams): Promise<PackageReadmeResponse> {
   try {
     // Validate parameters
-    const moduleName = validateModuleName(params.module_name);
+    const packageName = validateModuleName(params.package_name);
+    const version = params.version || 'latest';
     const includeExamples = validateBoolean(params.include_examples, 'include_examples') ?? true;
 
-    logger.debug(`Getting package README for ${moduleName}`);
+    logger.debug(`Getting package README for ${packageName}`);
 
     // Check cache first
-    const cacheKey = createCacheKey.moduleReadme(moduleName);
+    const cacheKey = createCacheKey.moduleReadme(packageName);
     const cached = cache.get<PackageReadmeResponse>(cacheKey);
     if (cached) {
-      logger.debug(`Using cached README for ${moduleName}`);
+      logger.debug(`Using cached README for ${packageName}`);
       return cached;
     }
 
+    // First, search to verify package exists
+    logger.debug(`Searching for package existence: ${packageName}`);
+    const searchResult = await searchPackages({ query: packageName, limit: 10 });
+    
+    // Check if the exact package name exists in search results
+    const exactMatch = searchResult.packages.find((pkg: any) => pkg.name === packageName);
+    if (!exactMatch) {
+      return {
+        package_name: packageName,
+        version: version,
+        description: '',
+        readme_content: '',
+        usage_examples: [],
+        installation: {
+          cpan: `cpan ${packageName}`,
+          cpanm: `cpanm ${packageName}`,
+          cpanfile: `requires '${packageName}';`,
+        },
+        basic_info: {
+          name: packageName,
+          version: version,
+          description: '',
+          author: '',
+        },
+        exists: false,
+      };
+    }
+    
+    logger.debug(`Package found in search results: ${packageName}`);
+
     // Get module information from MetaCPAN
-    const moduleInfo = await metaCpanApi.getModuleInfo(moduleName);
+    const moduleInfo = await metaCpanApi.getModuleInfo(packageName);
     
     // Get POD content for README
-    const podContent = await metaCpanApi.getModulePod(moduleName);
+    const podContent = await metaCpanApi.getModulePod(packageName);
     let readmeContent = '';
     let usageExamples: UsageExample[] = [];
 
@@ -39,19 +71,19 @@ export async function getPackageReadme(params: GetPackageReadmeParams): Promise<
       }
     } else {
       // Create a basic README if no POD is available
-      readmeContent = createBasicReadme(moduleName, moduleInfo.version, moduleInfo.abstract);
+      readmeContent = createBasicReadme(packageName, moduleInfo.version, moduleInfo.abstract);
     }
 
     // Create installation info
     const installation: InstallationInfo = {
-      cpan: `cpan ${moduleName}`,
-      cpanm: `cpanm ${moduleName}`,
-      cpanfile: `requires '${moduleName}';`,
+      cpan: `cpan ${packageName}`,
+      cpanm: `cpanm ${packageName}`,
+      cpanfile: `requires '${packageName}';`,
     };
 
     // Create basic info
     const basicInfo: PackageBasicInfo = {
-      name: moduleName,
+      name: packageName,
       version: moduleInfo.version,
       description: moduleInfo.abstract,
       author: moduleInfo.author,
@@ -70,7 +102,7 @@ export async function getPackageReadme(params: GetPackageReadmeParams): Promise<
     }
 
     const result: PackageReadmeResponse = {
-      module_name: moduleName,
+      package_name: packageName,
       version: moduleInfo.version,
       description: moduleInfo.abstract,
       readme_content: readmeContent,
@@ -78,20 +110,21 @@ export async function getPackageReadme(params: GetPackageReadmeParams): Promise<
       installation,
       basic_info: basicInfo,
       repository,
+      exists: true,
     };
 
     // Cache the result
     cache.set(cacheKey, result, 3600 * 1000); // Cache for 1 hour
 
-    logger.info(`Successfully retrieved README for ${moduleName}`);
+    logger.info(`Successfully retrieved README for ${packageName}`);
     return result;
   } catch (error) {
-    handleApiError(error, `get package README for ${params.module_name}`);
+    handleApiError(error, `get package README for ${params.package_name}`);
   }
 }
 
-function createBasicReadme(moduleName: string, version: string, description: string): string {
-  return `# ${moduleName}
+function createBasicReadme(packageName: string, version: string, description: string): string {
+  return `# ${packageName}
 
 ${description}
 
@@ -100,13 +133,13 @@ ${description}
 ### Using CPAN
 
 \`\`\`bash
-cpan ${moduleName}
+cpan ${packageName}
 \`\`\`
 
 ### Using cpanm
 
 \`\`\`bash
-cpanm ${moduleName}
+cpanm ${packageName}
 \`\`\`
 
 ### Using cpanfile
@@ -114,13 +147,13 @@ cpanm ${moduleName}
 Add to your cpanfile:
 
 \`\`\`perl
-requires '${moduleName}';
+requires '${packageName}';
 \`\`\`
 
 ## Usage
 
 \`\`\`perl
-use ${moduleName};
+use ${packageName};
 
 # Add your usage example here
 \`\`\`

@@ -3,6 +3,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ErrorCode,
+  ListPromptsRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -27,17 +29,21 @@ const TOOL_DEFINITIONS = {
     inputSchema: {
       type: 'object',
       properties: {
-        module_name: {
+        package_name: {
           type: 'string',
           description: 'The name of the CPAN module (e.g., "Data::Dumper", "LWP::UserAgent")',
+        },
+        version: {
+          type: 'string',
+          description: 'Package version (optional, defaults to latest)',
         },
         include_examples: {
           type: 'boolean',
           description: 'Whether to include usage examples (default: true)',
           default: true,
-        },
+        }
       },
-      required: ['module_name'],
+      required: ['package_name'],
     },
   },
   get_package_info: {
@@ -46,7 +52,7 @@ const TOOL_DEFINITIONS = {
     inputSchema: {
       type: 'object',
       properties: {
-        module_name: {
+        package_name: {
           type: 'string',
           description: 'The name of the CPAN module (e.g., "Data::Dumper", "LWP::UserAgent")',
         },
@@ -55,13 +61,13 @@ const TOOL_DEFINITIONS = {
           description: 'Whether to include dependencies (default: true)',
           default: true,
         },
-        include_test_dependencies: {
+        include_dev_dependencies: {
           type: 'boolean',
           description: 'Whether to include test dependencies (default: false)',
           default: false,
-        },
+        }
       },
-      required: ['module_name'],
+      required: ['package_name'],
     },
   },
   search_packages: {
@@ -80,7 +86,7 @@ const TOOL_DEFINITIONS = {
           default: 20,
           minimum: 1,
           maximum: 100,
-        },
+        }
       },
       required: ['query'],
     },
@@ -99,7 +105,9 @@ export class CpanPackageReadmeMcpServer {
       {
         capabilities: {
           tools: {},
-        },
+          prompts: {},
+          resources: {}
+        }
       }
     );
 
@@ -108,14 +116,24 @@ export class CpanPackageReadmeMcpServer {
 
   private setupHandlers(): void {
     // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    (this.server as any).setRequestHandler(ListToolsRequestSchema, async () => {
       return {
         tools: Object.values(TOOL_DEFINITIONS),
       };
     });
 
+    // Handle prompts list
+    (this.server as any).setRequestHandler(ListPromptsRequestSchema, async () => {
+      return { prompts: [] };
+    });
+
+    // Handle resources list
+    (this.server as any).setRequestHandler(ListResourcesRequestSchema, async () => {
+      return { resources: [] };
+    });
+
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    (this.server as any).setRequestHandler(CallToolRequestSchema, async (request: any, _extra: any) => {
       const { name, arguments: args } = request.params;
       
 
@@ -178,14 +196,21 @@ export class CpanPackageReadmeMcpServer {
     const params = args as Record<string, unknown>;
 
     // Validate required parameters
-    if (!params.module_name || typeof params.module_name !== 'string') {
+    if (!params.package_name || typeof params.package_name !== 'string') {
       throw new McpError(
         ErrorCode.InvalidParams,
-        'module_name is required and must be a string'
+        'package_name is required and must be a string'
       );
     }
 
     // Validate optional parameters
+    if (params.version !== undefined && typeof params.version !== 'string') {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        'version must be a string'
+      );
+    }
+
     if (params.include_examples !== undefined && typeof params.include_examples !== 'boolean') {
       throw new McpError(
         ErrorCode.InvalidParams,
@@ -194,8 +219,12 @@ export class CpanPackageReadmeMcpServer {
     }
 
     const result: GetPackageReadmeParams = {
-      module_name: params.module_name,
+      package_name: params.package_name,
     };
+    
+    if (params.version !== undefined) {
+      result.version = params.version as string;
+    }
     
     if (params.include_examples !== undefined) {
       result.include_examples = params.include_examples as boolean;
@@ -210,9 +239,9 @@ export class CpanPackageReadmeMcpServer {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+          text: JSON.stringify(result, null, 2)
+        }
+      ]
     };
   }
 
@@ -227,10 +256,10 @@ export class CpanPackageReadmeMcpServer {
     const params = args as Record<string, unknown>;
 
     // Validate required parameters
-    if (!params.module_name || typeof params.module_name !== 'string') {
+    if (!params.package_name || typeof params.package_name !== 'string') {
       throw new McpError(
         ErrorCode.InvalidParams,
-        'module_name is required and must be a string'
+        'package_name is required and must be a string'
       );
     }
 
@@ -242,23 +271,23 @@ export class CpanPackageReadmeMcpServer {
       );
     }
 
-    if (params.include_test_dependencies !== undefined && typeof params.include_test_dependencies !== 'boolean') {
+    if (params.include_dev_dependencies !== undefined && typeof params.include_dev_dependencies !== 'boolean') {
       throw new McpError(
         ErrorCode.InvalidParams,
-        'include_test_dependencies must be a boolean'
+        'include_dev_dependencies must be a boolean'
       );
     }
 
     const result: GetPackageInfoParams = {
-      module_name: params.module_name,
+      package_name: params.package_name,
     };
     
     if (params.include_dependencies !== undefined) {
       result.include_dependencies = params.include_dependencies as boolean;
     }
     
-    if (params.include_test_dependencies !== undefined) {
-      result.include_test_dependencies = params.include_test_dependencies as boolean;
+    if (params.include_dev_dependencies !== undefined) {
+      result.include_dev_dependencies = params.include_dev_dependencies as boolean;
     }
     
     return result;
@@ -270,9 +299,9 @@ export class CpanPackageReadmeMcpServer {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+          text: JSON.stringify(result, null, 2)
+        }
+      ]
     };
   }
 
@@ -321,9 +350,9 @@ export class CpanPackageReadmeMcpServer {
       content: [
         {
           type: 'text',
-          text: JSON.stringify(result, null, 2),
-        },
-      ],
+          text: JSON.stringify(result, null, 2)
+        }
+      ]
     };
   }
 
@@ -348,7 +377,7 @@ export class CpanPackageReadmeMcpServer {
   async run(): Promise<void> {
     try {
       const transport = new StdioServerTransport();
-      await this.server.connect(transport);
+      await (this.server as any).connect(transport);
     } catch (error) {
       logger.error('Failed to start server transport', { error });
       throw error;
@@ -356,7 +385,7 @@ export class CpanPackageReadmeMcpServer {
   }
 
   async stop(): Promise<void> {
-    await this.server.close();
+    await (this.server as any).close();
   }
 }
 
