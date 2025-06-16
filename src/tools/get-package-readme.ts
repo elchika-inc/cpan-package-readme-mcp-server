@@ -26,7 +26,7 @@ export async function getPackageReadme(params: GetPackageReadmeParams): Promise<
     const moduleInfo = await metaCpanApi.getModuleInfo(moduleName);
     
     // Get POD content for README
-    let podContent = await metaCpanApi.getModulePod(moduleName);
+    const podContent = await metaCpanApi.getModulePod(moduleName);
     let readmeContent = '';
     let usageExamples: UsageExample[] = [];
 

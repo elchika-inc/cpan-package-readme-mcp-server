@@ -138,7 +138,7 @@ export class ReadmeParser {
 
   private extractExampleTitleFromContext(content: string, codeBlock: string): string | undefined {
     const codeIndex = content.indexOf(codeBlock);
-    if (codeIndex === -1) return undefined;
+    if (codeIndex === -1) {return undefined;}
     
     // Look for text before the code block
     const beforeCode = content.substring(Math.max(0, codeIndex - 200), codeIndex);
@@ -163,7 +163,7 @@ export class ReadmeParser {
 
   private extractExampleDescriptionFromContext(content: string, codeBlock: string): string | undefined {
     const codeIndex = content.indexOf(codeBlock);
-    if (codeIndex === -1) return undefined;
+    if (codeIndex === -1) {return undefined;}
     
     // Look for text after the code block
     const afterCode = content.substring(codeIndex + codeBlock.length, codeIndex + codeBlock.length + 300);
@@ -176,7 +176,7 @@ export class ReadmeParser {
       
       // Stop at POD directives or empty lines
       if (!trimmed || trimmed.startsWith('=')) {
-        if (description) break;
+        if (description) {break;}
         continue;
       }
       
@@ -243,7 +243,7 @@ export class ReadmeParser {
   }
 
   convertPodToReadme(podContent: string): string {
-    if (!podContent) return '';
+    if (!podContent) {return '';}
     
     let readme = podContent;
     
