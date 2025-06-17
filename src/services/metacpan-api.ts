@@ -56,8 +56,10 @@ export class MetaCpanApi {
 
   async searchModules(query: string, limit: number = 20): Promise<MetaCpanSearchResponse> {
     try {
-      const searchUrl = new URL(`${METACPAN_BASE_URL}/search/module`);
-      searchUrl.searchParams.set('q', query);
+      const searchUrl = new URL(`${METACPAN_BASE_URL}/module/_search`);
+      // Escape special characters in the query for ElasticSearch
+      const escapedQuery = query.replace(/:/g, '\\:');
+      searchUrl.searchParams.set('q', escapedQuery);
       searchUrl.searchParams.set('size', limit.toString());
 
       logger.debug(`Searching modules: ${searchUrl.toString()}`);

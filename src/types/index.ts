@@ -173,23 +173,36 @@ export interface MetaCpanSearchResponse {
   hits: {
     hits: {
       _source: {
-        name: string;
-        version: string;
-        abstract: string;
+        name?: string;
+        version?: string;
+        abstract?: string;
         author: string;
-        distribution: string;
+        distribution?: string;
         date: string;
-        deprecated: boolean;
-        maturity: string;
-        authorized: boolean;
+        deprecated?: boolean;
+        maturity?: string;
+        authorized?: boolean;
+        documentation?: string;
+        release?: string;
+        module?: Array<{
+          name: string;
+          version: string;
+          authorized: boolean;
+          indexed: boolean;
+          version_numified: number;
+          associated_pod?: string;
+        }>;
       };
       _score: number;
     }[];
-    total: {
+    total?: {
       value: number;
       relation: string;
     };
+    max_score?: number;
   };
+  timed_out?: boolean;
+  took?: number;
 }
 
 export interface MetaCpanReleaseResponse {

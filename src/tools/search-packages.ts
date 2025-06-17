@@ -25,19 +25,24 @@ export async function searchPackages(params: SearchPackagesParams): Promise<Sear
     const searchResponse = await metaCpanApi.searchModules(query, limit);
 
     // Transform the results to our format
-    const packages: CpanPackageSearchResult[] = searchResponse.hits.hits.map(hit => ({
-      name: hit._source.name,
-      version: hit._source.version,
-      description: hit._source.abstract,
-      author: hit._source.author,
-      distribution: hit._source.distribution,
-      release_date: hit._source.date,
-      abstract: hit._source.abstract,
-    }));
+    const packages: CpanPackageSearchResult[] = searchResponse.hits.hits.map(hit => {
+      // Get the main module info from the first module in the array
+      const mainModule = hit._source.module?.[0];
+      
+      return {
+        name: mainModule?.name || hit._source.documentation || hit._source.name || 'Unknown',
+        version: mainModule?.version || hit._source.version || 'unknown',
+        description: hit._source.abstract || hit._source.documentation || 'No description available',
+        author: hit._source.author || 'Unknown',
+        distribution: hit._source.distribution || hit._source.release || 'Unknown',
+        release_date: hit._source.date || 'Unknown',
+        abstract: hit._source.abstract || hit._source.documentation || 'No description available',
+      };
+    });
 
     const result: SearchPackagesResponse = {
       query,
-      total: searchResponse.hits.total.value,
+      total: searchResponse.hits.total?.value || packages.length,
       packages,
     };
 
