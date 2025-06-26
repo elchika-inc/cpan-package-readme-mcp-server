@@ -1,31 +1,24 @@
 # CPAN Package README MCP Server
 
+[![license](https://img.shields.io/npm/l/cpan-package-readme-mcp-server)](https://github.com/elchika-inc/cpan-package-readme-mcp-server/blob/main/LICENSE)
 [![npm version](https://img.shields.io/npm/v/cpan-package-readme-mcp-server)](https://www.npmjs.com/package/cpan-package-readme-mcp-server)
 [![npm downloads](https://img.shields.io/npm/dm/cpan-package-readme-mcp-server)](https://www.npmjs.com/package/cpan-package-readme-mcp-server)
-[![GitHub stars](https://img.shields.io/github/stars/naoto24kawa/cpan-package-readme-mcp-server)](https://github.com/naoto24kawa/cpan-package-readme-mcp-server)
-[![GitHub issues](https://img.shields.io/github/issues/naoto24kawa/cpan-package-readme-mcp-server)](https://github.com/naoto24kawa/cpan-package-readme-mcp-server/issues)
-[![license](https://img.shields.io/npm/l/cpan-package-readme-mcp-server)](https://github.com/naoto24kawa/cpan-package-readme-mcp-server/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/elchika-inc/cpan-package-readme-mcp-server)](https://github.com/elchika-inc/cpan-package-readme-mcp-server)
 
-A Model Context Protocol (MCP) server that provides CPAN (Comprehensive Perl Archive Network) package information, including README content, package metadata, and search capabilities.
+An MCP (Model Context Protocol) server that enables AI assistants to fetch comprehensive information about CPAN (Comprehensive Perl Archive Network) packages, including README content, package metadata, and search functionality.
 
 ## Features
 
-- **Package README**: Fetch README and documentation for CPAN modules
-- **Package Information**: Get metadata, dependencies, and version info
-- **Search Packages**: Search CPAN repository for modules
-- **Comprehensive Documentation**: Access detailed package information and usage examples
+- **Package README Retrieval**: Fetch formatted README content with usage examples from Perl/CPAN modules hosted on MetaCPAN
+- **Package Information**: Get comprehensive package metadata including dependencies, versions, author information, and documentation
+- **Package Search**: Search CPAN repository with filtering by category, author, and relevance
+- **Smart Caching**: Intelligent caching system to optimize API usage and improve response times
+- **MetaCPAN Integration**: Direct integration with MetaCPAN API for comprehensive package information
+- **Error Handling**: Robust error handling with automatic retry logic and fallback strategies
 
-## Installation
+## MCP Client Configuration
 
-```bash
-npm install cpan-package-readme-mcp-server
-```
-
-## Usage
-
-### As an MCP Server
-
-Add to your MCP client configuration:
+Add this server to your MCP client configuration:
 
 ```json
 {
@@ -38,35 +31,32 @@ Add to your MCP client configuration:
 }
 ```
 
-### Available Tools
+## Available Tools
 
-#### `get_readme_from_cpan`
+### get_package_readme
 
-Get package README and usage examples from CPAN.
+Retrieves comprehensive README content and usage examples for CPAN packages.
 
 **Parameters:**
-- `package_name` (required): The CPAN module name (e.g., "Data::Dumper", "LWP::UserAgent")
-- `version` (optional): Package version (defaults to latest)
-- `include_examples` (optional): Whether to include usage examples (default: true)
-
-**Example:**
 ```json
 {
   "package_name": "LWP::UserAgent",
+  "version": "latest",
   "include_examples": true
 }
 ```
 
-#### `get_package_info_from_cpan`
+- `package_name` (string, required): CPAN module name (e.g., "Data::Dumper", "LWP::UserAgent")
+- `version` (string, optional): Specific package version or "latest" (default: "latest")
+- `include_examples` (boolean, optional): Include usage examples and code snippets (default: true)
 
-Get package basic information and dependencies from CPAN.
+**Returns:** Formatted README content with installation instructions, usage examples, and API documentation.
+
+### get_package_info
+
+Fetches detailed package metadata, dependencies, and author information from MetaCPAN.
 
 **Parameters:**
-- `package_name` (required): The CPAN module name
-- `include_dependencies` (optional): Whether to include dependencies (default: true)
-- `include_dev_dependencies` (optional): Whether to include test dependencies (default: false)
-
-**Example:**
 ```json
 {
   "package_name": "Mojolicious",
@@ -75,70 +65,41 @@ Get package basic information and dependencies from CPAN.
 }
 ```
 
-#### `search_packages_from_cpan`
+- `package_name` (string, required): CPAN module name
+- `include_dependencies` (boolean, optional): Include runtime dependencies (default: true)
+- `include_dev_dependencies` (boolean, optional): Include test/development dependencies (default: false)
 
-Search for packages in CPAN.
+**Returns:** Package metadata including version info, author details, license, download stats, and dependency information.
+
+### search_packages
+
+Searches CPAN repository for packages with filtering capabilities.
 
 **Parameters:**
-- `query` (required): The search query
-- `limit` (optional): Maximum number of results (default: 20, max: 100)
-
-**Example:**
 ```json
 {
   "query": "web framework",
-  "limit": 10
+  "limit": 20,
+  "author": "SRI"
 }
 ```
 
-## Development
+- `query` (string, required): Search terms (module name, description, keywords)
+- `limit` (number, optional): Maximum number of results to return (default: 20, max: 100)
+- `author` (string, optional): Filter by author/maintainer CPAN ID
 
-### Setup
-
-```bash
-npm install
-```
-
-### Build
-
-```bash
-npm run build
-```
-
-### Test
-
-```bash
-npm test
-```
-
-### Development Mode
-
-```bash
-npm run dev
-```
-
-## Configuration
-
-The server uses MetaCPAN API to fetch package information. No additional configuration is required for basic usage.
+**Returns:** List of matching packages with names, descriptions, authors, and popularity metrics.
 
 ## Error Handling
 
-The server handles various error conditions:
-- Package not found
-- Invalid module names
-- Network connectivity issues
-- Rate limiting
-- Invalid parameters
+The server handles common error scenarios gracefully:
 
-## Dependencies
-
-- `@modelcontextprotocol/sdk`: MCP SDK for server implementation
-- Built-in HTTP client for MetaCPAN API requests
+- **Package not found**: Returns clear error messages with similar module suggestions
+- **Rate limiting**: Implements automatic retry with exponential backoff
+- **Network timeouts**: Configurable timeout with retry logic
+- **Invalid module names**: Validates module name format and provides guidance
+- **MetaCPAN API failures**: Fallback strategies when API is unavailable
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
