@@ -6,6 +6,8 @@ export class MemoryCache {
   private readonly defaultTtl: number;
   private readonly maxSize: number;
   private readonly cleanupInterval: NodeJS.Timeout;
+  private hitCount = 0;
+  private missCount = 0;
 
   constructor(options: CacheOptions = {}) {
     this.defaultTtl = options.ttl || 3600 * 1000; // 1 hour default in milliseconds
@@ -40,6 +42,7 @@ export class MemoryCache {
     const entry = this.cache.get(key) as CacheEntry<T> | undefined;
     
     if (!entry) {
+      this.missCount++;
       logger.debug(`Cache miss: ${key}`);
       return null;
     }
@@ -47,12 +50,14 @@ export class MemoryCache {
     const now = Date.now();
     if (now - entry.timestamp > entry.ttl) {
       this.cache.delete(key);
+      this.missCount++;
       logger.debug(`Cache expired: ${key}`);
       return null;
     }
 
     // Update timestamp for LRU
     entry.timestamp = now;
+    this.hitCount++;
     logger.debug(`Cache hit: ${key}`);
     return entry.data;
   }
@@ -67,6 +72,8 @@ export class MemoryCache {
 
   clear(): void {
     this.cache.clear();
+    this.hitCount = 0;
+    this.missCount = 0;
     logger.info('Cache cleared');
   }
 
@@ -89,12 +96,17 @@ export class MemoryCache {
     return this.cache.size;
   }
 
-  getStats(): { size: number; memoryUsage: number; hitRate: number } {
+  getStats(): { size: number; memoryUsage: number; hitRate: number; hits: number; misses: number } {
     const memoryUsage = this.estimateMemoryUsage();
+    const totalRequests = this.hitCount + this.missCount;
+    const hitRate = totalRequests > 0 ? this.hitCount / totalRequests : 0;
+    
     return {
       size: this.cache.size,
       memoryUsage,
-      hitRate: 0, // TODO: Implement hit rate tracking
+      hitRate,
+      hits: this.hitCount,
+      misses: this.missCount,
     };
   }
 

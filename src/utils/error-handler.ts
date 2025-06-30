@@ -49,13 +49,13 @@ export function isNetworkError(error: unknown): error is NetworkError {
 export function isPackageNotFoundError(error: unknown): error is PackageNotFoundError {
   return error instanceof Error && 
          (error.name === 'PackageNotFoundError' || 
-          error.message.includes('not found'));
+          error.message.toLowerCase().includes('not found'));
 }
 
 export function isRateLimitError(error: unknown): error is RateLimitError {
   return error instanceof Error && 
          (error.name === 'RateLimitError' || 
-          error.message.includes('rate limit') ||
+          error.message.toLowerCase().includes('rate limit') ||
           error.message.includes('429'));
 }
 
@@ -77,13 +77,21 @@ export function extractErrorMessage(error: unknown): string {
 
 export function sanitizeErrorForLogging(error: unknown): unknown {
   if (error instanceof Error) {
-    return {
+    const result: any = {
       name: error.name,
       message: error.message,
       stack: error.stack,
-      ...(error as CpanPackageReadmeMcpError).code && { code: (error as CpanPackageReadmeMcpError).code },
-      ...(error as CpanPackageReadmeMcpError).statusCode && { statusCode: (error as CpanPackageReadmeMcpError).statusCode },
     };
+    
+    if ('code' in error && (error as any).code) {
+      result.code = (error as any).code;
+    }
+    
+    if ('statusCode' in error && (error as any).statusCode) {
+      result.statusCode = (error as any).statusCode;
+    }
+    
+    return result;
   }
   
   return error;

@@ -3,7 +3,7 @@ import { metaCpanApi } from '../services/metacpan-api.js';
 import { logger } from '../utils/logger.js';
 import { validateSearchQuery, validateLimit } from '../utils/validators.js';
 import { handleApiError } from '../utils/error-handler.js';
-import type { SearchPackagesParams, SearchPackagesResponse, CpanPackageSearchResult } from '../types/index.js';
+import type { SearchPackagesParams, SearchPackagesResponse, CpanPackageSearchResult, MetaCpanSearchResponse } from '../types/index.js';
 
 export async function searchPackages(params: SearchPackagesParams): Promise<SearchPackagesResponse> {
   try {
@@ -25,20 +25,9 @@ export async function searchPackages(params: SearchPackagesParams): Promise<Sear
     const searchResponse = await metaCpanApi.searchModules(query, limit);
 
     // Transform the results to our format
-    const packages: CpanPackageSearchResult[] = searchResponse.hits.hits.map(hit => {
-      // Get the main module info from the first module in the array
-      const mainModule = hit._source.module?.[0];
-      
-      return {
-        name: mainModule?.name || hit._source.documentation || hit._source.name || 'Unknown',
-        version: mainModule?.version || hit._source.version || 'unknown',
-        description: hit._source.abstract || hit._source.documentation || 'No description available',
-        author: hit._source.author || 'Unknown',
-        distribution: hit._source.distribution || hit._source.release || 'Unknown',
-        release_date: hit._source.date || 'Unknown',
-        abstract: hit._source.abstract || hit._source.documentation || 'No description available',
-      };
-    });
+    const packages: CpanPackageSearchResult[] = searchResponse.hits.hits.map(hit => 
+      transformHitToPackageResult(hit)
+    );
 
     const result: SearchPackagesResponse = {
       query,
@@ -54,4 +43,23 @@ export async function searchPackages(params: SearchPackagesParams): Promise<Sear
   } catch (error) {
     handleApiError(error, `search packages with query "${params.query}"`);
   }
+}
+
+function transformHitToPackageResult(hit: MetaCpanSearchResponse['hits']['hits'][0]): CpanPackageSearchResult {
+  const mainModule = hit._source.module?.[0];
+  const source = hit._source;
+  
+  return {
+    name: getFirstValidValue(mainModule?.name, source.documentation, source.name) || 'Unknown',
+    version: getFirstValidValue(mainModule?.version, source.version) || 'unknown',
+    description: getFirstValidValue(source.abstract, source.documentation) || 'No description available',
+    author: source.author || 'Unknown',
+    distribution: getFirstValidValue(source.distribution, source.release) || 'Unknown',
+    release_date: source.date || 'Unknown',
+    abstract: getFirstValidValue(source.abstract, source.documentation) || 'No description available',
+  };
+}
+
+function getFirstValidValue(...values: (string | undefined)[]): string | undefined {
+  return values.find(value => value && value.trim().length > 0);
 }

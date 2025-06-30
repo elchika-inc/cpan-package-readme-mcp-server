@@ -39,6 +39,21 @@ export function validateModuleName(moduleName: unknown): string {
     );
   }
 
+  // Check for common typos or patterns before general validation
+  if (trimmedName.includes(':::')) {
+    throw new CpanPackageReadmeMcpError(
+      `Module name "${trimmedName}" contains triple colons. Did you mean "${trimmedName.replace(/:::/g, '::')}"?`,
+      'INVALID_MODULE_NAME'
+    );
+  }
+
+  if (trimmedName.startsWith('::') || trimmedName.endsWith('::')) {
+    throw new CpanPackageReadmeMcpError(
+      `Module name "${trimmedName}" starts or ends with '::'. Module names should not begin or end with namespace separators. Example: "DBI::mysql" not "::DBI::mysql::".`,
+      'INVALID_MODULE_NAME'
+    );
+  }
+
   // CPAN module names: letters, numbers, colons, underscores, hyphens
   // Must start with a letter, can contain :: for namespaces
   const validNameRegex = /^[a-zA-Z][a-zA-Z0-9:_-]*$/;
@@ -59,21 +74,6 @@ export function validateModuleName(moduleName: unknown): string {
     
     throw new CpanPackageReadmeMcpError(
       `Module name "${trimmedName}" contains invalid characters.${suggestion} Valid CPAN module names must start with a letter and contain only letters, numbers, colons (::), underscores (_), and hyphens (-). Examples: "DBI", "DBD::MySQL", "File::Spec".`,
-      'INVALID_MODULE_NAME'
-    );
-  }
-
-  // Check for common typos or patterns
-  if (trimmedName.includes(':::')) {
-    throw new CpanPackageReadmeMcpError(
-      `Module name "${trimmedName}" contains triple colons. Did you mean "${trimmedName.replace(/:::/g, '::')}"?`,
-      'INVALID_MODULE_NAME'
-    );
-  }
-
-  if (trimmedName.startsWith('::') || trimmedName.endsWith('::')) {
-    throw new CpanPackageReadmeMcpError(
-      `Module name "${trimmedName}" starts or ends with '::'. Module names should not begin or end with namespace separators. Example: "DBI::mysql" not "::DBI::mysql::".`,
       'INVALID_MODULE_NAME'
     );
   }
